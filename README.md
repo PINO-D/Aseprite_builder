@@ -25,7 +25,7 @@ This workflow allows you to automatically build Aseprite by specifying a version
 1. Go to the **Actions** tab in your repository
 2. Select **"Build a specified version"** workflow on the left sidebar
 3. Click the **"Run workflow"** button
-4. Enter the Aseprite version tag you want to build (e.g., `v1.2.29`)
+4. Enter the Aseprite version tag you want to build (e.g., `v1.3.16`)
 5. Click **"Run workflow"** to confirm
 
 ### Monitoring Progress

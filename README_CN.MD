@@ -1,4 +1,5 @@
 # Aseprite 自动构建工作流
+中文 | [English](./README.md)
 
 这是一个 GitHub Actions 工作流，用于自动构建和发布指定版本的 Aseprite。
 

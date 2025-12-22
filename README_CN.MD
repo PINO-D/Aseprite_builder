@@ -25,7 +25,7 @@
 1. 进入仓库的 **Actions** 标签
 2. 左侧选择 **"Build a specified version"** 工作流
 3. 点击 **"Run workflow"** 按钮
-4. 输入要构建的 Aseprite 版本标签（例如：`v1.2.29`）
+4. 输入要构建的 Aseprite 版本标签（例如：`v1.3.16`）
 5. 点击 **"Run workflow"** 确认
 
 ### 监控进度

@@ -1,4 +1,5 @@
 # Aseprite Automated Build Workflow
+[中文版本](./README_CN.md) | English
 
 This is a GitHub Actions workflow that automatically builds and releases a specified version of Aseprite.
 

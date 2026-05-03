@@ -1,4 +1,4 @@
-name: Build a specified version
+name: Build a specified version2
 
 on:
   workflow_dispatch:
@@ -64,6 +64,13 @@ jobs:
 
         SKIA_DIR="$(pwd)/skia"
 
+        # 清理可能存在的缓存和构建目录
+        echo "=== 清理旧的构建文件 ==="
+        rm -rf build
+        rm -rf CMakeCache.txt
+        rm -rf CMakeFiles
+        
+        echo "=== 开始 CMake 配置 ==="
         cmake -S . -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DENABLE_CCACHE=$enable_ccache \
@@ -73,9 +80,17 @@ jobs:
           -DSKIA_LIBRARY=$SKIA_DIR/out/Release-x64/skia.lib \
           -DENABLE_UI=${{ matrix.enable_ui }} \
           -DENABLE_UPDATER=OFF \
+          -DENABLE_NEWS=OFF \
           -DUSE_SHARED_CURL=OFF \
           -DCURL_USE_OPENSSL=OFF \
-          -DCURL_USE_SCHANNEL=ON
+          -DCURL_USE_SCHANNEL=ON \
+          -DCURL_DISABLE_OPENSSL_AUTO_LOAD_CONFIG=ON
+        
+        echo "=== 检查 CMake 配置输出中的 SSL 后端 ==="
+        if [ -f build/CMakeCache.txt ]; then
+          echo "查找 CURL SSL 相关配置:"
+          grep -i "CURL.*SSL\|CURL.*SCHANNEL\|CURL.*OPENSSL" build/CMakeCache.txt || echo "未找到相关配置"
+        fi
 
     # 编译
     - name: 编译
@@ -91,12 +106,17 @@ jobs:
         echo "=== 检查 aseprite.exe 依赖的 DLL ==="
         dumpbin //dependents aseprite.exe | tee dependencies.txt
         echo ""
+        echo "=== 完整的依赖列表 ==="
+        cat dependencies.txt
+        echo ""
         echo "=== 检查是否依赖 OpenSSL ==="
-        if grep -i "libcrypto\|libssl" dependencies.txt; then
-          echo "❌ 警告: 仍然依赖 OpenSSL DLL!"
+        if grep -i "libcrypto\|libssl\|openssl" dependencies.txt; then
+          echo "❌ 错误: 仍然依赖 OpenSSL DLL!"
+          echo "请检查上面的 CMake 配置输出"
           exit 1
         else
           echo "✅ 成功: 不依赖 OpenSSL DLL!"
+          echo "✅ 使用 Windows 原生加密库"
         fi
 
     # 打包

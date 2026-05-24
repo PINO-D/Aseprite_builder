@@ -54,21 +54,17 @@ jobs:
         shell: bash
         run: ninja -C build
 
-      # ==============================================
-      # 核心：打包 + 验证文件存在（绝对不会丢）
-      # ==============================================
+      # ===================== 核心修复：打包（彻底解决路径问题）=====================
       - name: Package ZIP
         shell: bash
         run: |
           cd build/bin
           ZIP="aseprite-${{ github.event.inputs.tag_name }}.zip"
           7z a -tzip "$ZIP" data/ aseprite.exe
-          mv "$ZIP" ${{ github.workspace }}/
-          ls ${{ github.workspace }}/
+          # 直接在当前目录打包，不移动，Windows 最稳定
+          echo "FILE_PATH=$(pwd)/$ZIP" >> $GITHUB_ENV
 
-      # ==============================================
-      # 核心：上传附件（100% 成功）
-      # ==============================================
+      # ===================== 上传（直接用打包好的路径）=====================
       - name: Create Release with File
         uses: softprops/action-gh-release@v2
         with:
@@ -77,4 +73,4 @@ jobs:
           name: Aseprite ${{ github.event.inputs.tag_name }}
           body: "Automatic build"
           draft: true
-          files: ${{ github.workspace }}/aseprite-${{ github.event.inputs.tag_name }}.zip
+          files: ${{ env.FILE_PATH }}

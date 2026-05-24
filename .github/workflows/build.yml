@@ -1,7 +1,7 @@
 permissions:
   contents: write
 
-name: Build Aseprite (Final Fixed)
+name: Build Aseprite (Final No DLL Error)
 
 on:
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
           curl -L -o skia.zip https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-Windows-Release-x64.zip
           7z x skia.zip -oskia -y
 
-      - name: CMake Configure
+      - name: CMake Configure (No OpenSSL)
         shell: bash
         run: |
           cmake -S . -B build -G Ninja \
@@ -48,7 +48,8 @@ jobs:
           -DENABLE_UPDATER=OFF \
           -DUSE_SHARED_CURL=OFF \
           -DCMAKE_USE_OPENSSL=OFF \
-          -DCMAKE_USE_SCHANNEL=ON
+          -DCMAKE_USE_SCHANNEL=ON \
+          -DBUILD_SHARED_LIBS=OFF
 
       - name: Build Aseprite
         shell: bash
@@ -69,6 +70,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.event.inputs.tag_name }}
           name: Aseprite ${{ github.event.inputs.tag_name }}
-          body: "Automatic build"
+          body: "Automatic build (No OpenSSL dependency)"
           draft: true
           files: ${{ env.FILE_PATH }}

@@ -17,18 +17,19 @@ jobs:
         enable_ui: [on]
 
     steps:
-    # 获得 Release 信息
+    # 获得 Release 信息（已修复特殊字符/换行问题）
     - name: Get Release Body & Repo Name
       id: get-content
       shell: bash
       run: |
-        body=$(curl -s https://api.github.com/repos/aseprite/aseprite/releases/tags/${{ github.event.inputs.tag_name }} | jq -r '.body')
+        # 安全获取 body，处理换行、引号、特殊字符
+        body=$(curl -s https://api.github.com/repos/aseprite/aseprite/releases/tags/${{ github.event.inputs.tag_name }} | jq -r '.body | gsub("\n";"\\n") | gsub("\"";"\\\"")')
         echo "body-content=$body" >> "$GITHUB_OUTPUT"
         repo_name="${{ github.repository }}"
         repo_name="${repo_name#${{ github.repository_owner }}/}"
         echo "repo-name=$repo_name" >> "$GITHUB_OUTPUT"
 
-    # 检出源码（升级到 v4，解决 Node.js 20 警告）
+    # 检出源码
     - uses: actions/checkout@v4
       with:
         repository: 'aseprite/aseprite'
@@ -41,7 +42,7 @@ jobs:
     # MSVC 编译环境
     - uses: ilammy/msvc-dev-cmd@v1
 
-    # 下载 Skia 并 CMake 构建
+    # 下载 Skia 并配置
     - name: Download Skia & Configure
       shell: bash
       run: |
@@ -62,19 +63,19 @@ jobs:
           -DCMAKE_USE_OPENSSL=OFF \
           -DCMAKE_USE_SCHANNEL=ON
 
-    # 编译（核心步骤，稳定不重试）
+    # 编译
     - name: Build Aseprite
       shell: bash
       run: ninja -C build
 
-    # 打包（修复路径问题，避免重试）
+    # 打包
     - name: Package
       shell: bash
       run: |
         cd build/bin
         7z a -tzip "${{ github.workspace }}/aseprite-${{ github.event.inputs.tag_name }}.zip" data/ aseprite.exe
 
-    # 上传 Release（升级到 v2，解决 Node 警告）
+    # 创建 Release（完全修复格式错误）
     - name: Create Draft Release
       uses: softprops/action-gh-release@v2
       with:

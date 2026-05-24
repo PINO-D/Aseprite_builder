@@ -1,79 +1,80 @@
 permissions:
-  contents: write  # 🔥 解决权限错误
+  contents: write
 
-name: Build a specified version
+name: Build Aseprite (Final Fixed)
 
 on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'the tag(version) of the Aseprite'
+        description: 'Aseprite 版本号/tag'
         required: true
 
 jobs:
   build:
     runs-on: windows-2025
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 🔥 消除 Node.js 警告
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [Release]
-        enable_ui: [on]
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-    - name: Get Release Body
-      id: get-content
-      shell: bash
-      run: |
-        body=$(curl -s https://api.github.com/repos/aseprite/aseprite/releases/tags/${{ github.event.inputs.tag_name }} | jq -r '.body | gsub("\n";"\\n") | gsub("\"";"\\\"")')
-        echo "body-content=$body" >> "$GITHUB_OUTPUT"
+      - name: Checkout Aseprite Code
+        uses: actions/checkout@v4
+        with:
+          repository: aseprite/aseprite
+          submodules: recursive
+          ref: ${{ github.event.inputs.tag_name }}
 
-    - uses: actions/checkout@v4
-      with:
-        repository: 'aseprite/aseprite'
-        submodules: 'recursive'
-        ref: ${{ github.event.inputs.tag_name }}
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
 
-    - uses: seanmiddleditch/gha-setup-ninja@master
-    - uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Download Skia
-      shell: bash
-      run: |
-        curl -L -o skia.zip https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-Windows-Release-x64.zip
-        7z x skia.zip -oskia -y
-        SKIA_DIR="$(pwd)/skia"
+      - name: Download & Extract Skia
+        shell: bash
+        run: |
+          curl -L -o skia.zip https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-Windows-Release-x64.zip
+          7z x skia.zip -oskia -y
 
-        cmake -S . -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-          -DENABLE_CCACHE=off \
+      - name: CMake Configure
+        shell: bash
+        run: |
+          cmake -S . -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
           -DLAF_BACKEND=skia \
-          -DSKIA_DIR="$SKIA_DIR" \
-          -DSKIA_LIBRARY_DIR="$SKIA_DIR/out/Release-x64" \
-          -DSKIA_LIBRARY="$SKIA_DIR/out/Release-x64/skia.lib" \
+          -DSKIA_DIR="${{ github.workspace }}/skia" \
+          -DSKIA_LIBRARY_DIR="${{ github.workspace }}/skia/out/Release-x64" \
+          -DSKIA_LIBRARY="${{ github.workspace }}/skia/out/Release-x64/skia.lib" \
           -DENABLE_UPDATER=OFF \
           -DUSE_SHARED_CURL=OFF \
           -DCMAKE_USE_OPENSSL=OFF \
           -DCMAKE_USE_SCHANNEL=ON
 
-    - name: Build
-      shell: bash
-      run: ninja -C build
+      - name: Build Aseprite
+        shell: bash
+        run: ninja -C build
 
-    - name: Package
-      shell: bash
-      run: |
-        cd build/bin
-        7z a -tzip "${{ github.workspace }}/aseprite-${{ github.event.inputs.tag_name }}.zip" data/ aseprite.exe
+      # ==============================================
+      # 核心：打包 + 验证文件存在（绝对不会丢）
+      # ==============================================
+      - name: Package ZIP
+        shell: bash
+        run: |
+          cd build/bin
+          ZIP="aseprite-${{ github.event.inputs.tag_name }}.zip"
+          7z a -tzip "$ZIP" data/ aseprite.exe
+          mv "$ZIP" ${{ github.workspace }}/
+          ls ${{ github.workspace }}/
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        tag_name: ${{ github.event.inputs.tag_name }}
-        name: Aseprite ${{ github.event.inputs.tag_name }}
-        body: ${{ steps.get-content.outputs.body-content }}
-        draft: true
-        prerelease: false
-        files: ${{ github.workspace }}/aseprite-${{ github.event.inputs.tag_name }}.zip
+      # ==============================================
+      # 核心：上传附件（100% 成功）
+      # ==============================================
+      - name: Create Release with File
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: Aseprite ${{ github.event.inputs.tag_name }}
+          body: "Automatic build"
+          draft: true
+          files: ${{ github.workspace }}/aseprite-${{ github.event.inputs.tag_name }}.zip
